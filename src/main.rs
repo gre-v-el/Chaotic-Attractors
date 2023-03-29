@@ -35,8 +35,8 @@ fn spawn_seeds(positions: &mut Vec<(f64, f64, f64)>, cx: f64, cy: f64, cz: f64, 
 
 #[macroquad::main("chaotic attractors")]
 async fn main() {
-	let v = tokenize("x/a*2 + b+b*3.1415936 / 2.718^b".to_owned());
-	println!("{:#?}", v);
+	let v = tokenize("x/a*2 + max(sin(b+b*3.1415936), / 2.718^b)".to_owned());
+	println!("{:?}", v);
 
 
 	let mut attractor = HashMap::new();

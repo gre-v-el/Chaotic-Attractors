@@ -1,5 +1,3 @@
-use std::{string::ParseError, num::ParseFloatError};
-
 #[derive(Debug)]
 pub enum Token {
 	Literal(f64),			// 2.0, 3.1415926, 10.0
@@ -34,94 +32,93 @@ pub fn tokenize(mut string: String) -> Result<(Vec<Token>, Vec<char>), &'static 
 	// aggregates characters which cannot be converted to a token by themselves
 	let mut current = String::new();
 	for char in string.chars() {
+				
+		let single_char_token = one_char_token(char);
 		
-		let token;
-		
-		// save literals and function names
-		if char.is_ascii_alphanumeric() || char == '.' {
-			current.push(char);
-			
-			token = None;
-		}
-		
-		// operator
-		else {
-			token = match char {
-				'+' => Some(Token::Operator(Operator::Add)),
-				'-' => Some(Token::Operator(Operator::Subtract)),
-				'*' => Some(Token::Operator(Operator::Multiply)),
-				'/' => Some(Token::Operator(Operator::Divide)),
-				'^' => Some(Token::Operator(Operator::Power)),
-				'(' => Some(Token::Parenthesis(true)),
-				')' => Some(Token::Parenthesis(false)),
-				',' => Some(Token::Comma),
-				_  => None
-			};
-		}
-		
-		// if token detected and some literal or function or identifier got aggregated, push it first
-		if let Some(token) = token {
+		if let Some(token) = single_char_token {
 			if !current.is_empty() {
-				
-				let mut alphabetic = 0;
-				let mut numeric = 0;
-				let mut total = 0;
-				let begins_with_letter = current.chars().next().unwrap().is_ascii_alphabetic();
-				for c in current.chars() {
-					total += 1;
-					if c.is_ascii_alphabetic() { alphabetic += 1 }
-					else if c.is_ascii_alphanumeric() || c == '.' { numeric += 1 }
-				}
-				
-				if alphabetic + numeric != total { return Err("Non-ASCII characters detected.") }
-				if !begins_with_letter && alphabetic > 0 { return Err("Identifier immidiately after literal."); }
-				if alphabetic == 0 && numeric > 0 {
-					let num = if let Ok(n) = current.parse::<f64>() {n} else {return Err("Improper literal")};
-					tokens.push(Token::Literal(num));
-				}
-				else if alphabetic > 0 && numeric == 0 {
-					tokens.push(match current.as_str() {
-						"sin"  => Token::Function(Function::Sin),
-						"cos"  => Token::Function(Function::Cos),
-						"max"  => Token::Function(Function::Max),
-						"min"  => Token::Function(Function::Min),
-						"sign" => Token::Function(Function::Sign),
-						str => {
-							if str.len() == 1 {
-								let char = str.chars().next().unwrap();
-								let mut index = None;
-								for (i, p) in parameters.iter().enumerate() {
-									if *p == char {
-										index = Some(i);
-										break;
-									}
-								}
-								let index = if let Some(i) = index { i } else {
-									parameters.push(char);
-									parameters.len() - 1
-								};
-								Token::Identifier(index)
-							}
-							else {
-								return Err("Unexpected function");
-							}
-						}
-					});
-					
-				}
-				
-				
+				let previous_token = multichar_token(&current, &mut parameters)?;
+				tokens.push(previous_token);
+				tokens.push(token);
 				current.clear();
 			}
-			tokens.push(token);
+		}
+		else {
+			current.push(char);
 		}
 	}
-	// if !current.is_empty() {
-	// 	println!("{current}");
-	// 	let num = if let Ok(n) = current.parse::<f64>() {n} else {return Err("Improper literal")};
-	// 	tokens.push(Token::Literal(num));
-	// 	current.clear();
-	// }
+	if !current.is_empty() {
+		let token = multichar_token(&current, &mut parameters)?;
+		tokens.push(token);
+	}
+	
 	
 	Ok((tokens, parameters))
+}
+
+pub fn one_char_token(string: char) -> Option<Token> {
+	match string {
+		'+' => Some(Token::Operator(Operator::Add)),
+		'-' => Some(Token::Operator(Operator::Subtract)),
+		'*' => Some(Token::Operator(Operator::Multiply)),
+		'/' => Some(Token::Operator(Operator::Divide)),
+		'^' => Some(Token::Operator(Operator::Power)),
+		'(' => Some(Token::Parenthesis(true)),
+		')' => Some(Token::Parenthesis(false)),
+		',' => Some(Token::Comma),
+		_  => None
+	}
+}
+
+pub fn multichar_token(string: &str, parameters: &mut Vec<char>) -> Result<Token, &'static str> {
+	let mut alphabetic = 0;
+	let mut numeric = 0;
+	let mut total = 0;
+	let begins_with_letter = string.chars().next().unwrap().is_ascii_alphabetic();
+	let mut example = None;
+	for c in string.chars() {
+		total += 1;
+		if c.is_ascii_alphabetic() { alphabetic += 1 }
+		else if c.is_ascii_alphanumeric() || c == '.' { numeric += 1 }
+		else { example = Some(c) }
+	}
+	
+	if alphabetic + numeric != total { return Err("Non-ASCII characters detected.") }
+	if !begins_with_letter && alphabetic > 0 { return Err("Identifier immidiately after literal."); }
+	if alphabetic == 0 && numeric > 0 {
+		let num = if let Ok(n) = string.parse::<f64>() {n} else {return Err("Improper literal")};
+		return Ok(Token::Literal(num));
+	}
+	else if alphabetic > 0 && numeric == 0 {
+		return Ok(match string {
+			"sin"  => Token::Function(Function::Sin),
+			"cos"  => Token::Function(Function::Cos),
+			"max"  => Token::Function(Function::Max),
+			"min"  => Token::Function(Function::Min),
+			"sign" => Token::Function(Function::Sign),
+			str => {
+				if str.len() == 1 {
+					let char = str.chars().next().unwrap();
+					let mut index = None;
+					for (i, p) in parameters.iter().enumerate() {
+						if *p == char {
+							index = Some(i);
+							break;
+						}
+					}
+					let index = if let Some(i) = index { i } else {
+						parameters.push(char);
+						parameters.len() - 1
+					};
+					Token::Identifier(index)
+				}
+				else {
+					return Err("Unexpected function");
+				}
+			}
+		});
+		
+	}
+
+	todo!()
 }
