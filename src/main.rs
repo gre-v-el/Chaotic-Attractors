@@ -1,9 +1,11 @@
 mod camera;
+mod tokenizer;
 
 use std::collections::HashMap;
 
 use camera::OrbitCamera;
-use egui_macroquad::{egui::{self, ecolor::rgb_from_hsv}, macroquad::{self, prelude::*}};
+use egui_macroquad::{egui, macroquad::{self, prelude::*}};
+use tokenizer::tokenize;
 
 fn lorenz(pos: &mut (f64, f64, f64), sigma: f64, rho: f64, beta: f64, dt: f64) {
 	let dx = sigma * (pos.1 - pos.0);
@@ -33,6 +35,10 @@ fn spawn_seeds(positions: &mut Vec<(f64, f64, f64)>, cx: f64, cy: f64, cz: f64, 
 
 #[macroquad::main("chaotic attractors")]
 async fn main() {
+	let v = tokenize("x/a*2 + b+b*3.1415936 / 2.718^b".to_owned());
+	println!("{:#?}", v);
+
+
 	let mut attractor = HashMap::new();
 
 	let mut positions = Vec::new();
