@@ -1,12 +1,13 @@
 mod camera;
 mod tokenizer;
 mod parser;
+mod token;
 
 use std::collections::HashMap;
 
 use camera::OrbitCamera;
 use egui_macroquad::{egui, macroquad::{self, prelude::*}};
-use parser::infix_to_postfix;
+use parser::{parse, evaluate};
 use tokenizer::tokenize;
 
 fn lorenz(pos: &mut (f64, f64, f64), sigma: f64, rho: f64, beta: f64, dt: f64) {
@@ -37,32 +38,12 @@ fn spawn_seeds(positions: &mut Vec<(f64, f64, f64)>, cx: f64, cy: f64, cz: f64, 
 
 #[macroquad::main("chaotic attractors")]
 async fn main() {
-	// x a / 2 * b sin 2.718 b ^ max +
-	let v = tokenize("x/a*2 + max(sin(b), 2.718^b)".to_owned());
-	// let v = tokenize("x^y^z^w".to_owned());
-	if let Ok((tokens, parameters)) = &v {
-		for t in tokens {
-			println!("{:?}", t);
-		}
-		println!();
-		for p in parameters {
-			println!("{:?}", p);
-		}
-	}
-	if let Err(e) = &v {
-		println!("{}", e);
-	}
+	let (postfix, parameters) = parse("min(cos(3.1415926), -5)".into()).unwrap();
 
-	println!("\n");
-	let postfix = infix_to_postfix(v.unwrap().0);
-	if let Ok(tokens) = &postfix {
-		for t in tokens {
-			println!("{:?}", t);
-		}
-	}
-	if let Err(e) = &postfix {
-		println!("{}", e);
-	}
+	println!("\n{:?}", evaluate(postfix, parameters));
+
+
+
 
 	let mut attractor = HashMap::new();
 

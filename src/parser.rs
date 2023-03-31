@@ -1,13 +1,12 @@
-use egui_macroquad::egui::epaint::ahash::HashMap;
-
-use crate::tokenizer::{Token, tokenize};
+use crate::tokenizer::tokenize;
+use crate::token::*;
 
 pub fn infix_to_postfix(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
 	let mut output = Vec::new();
 	let mut stack = Vec::new();
 
 	for t in &tokens {
-		if t.is_outputable() { // literal, identifier
+		if t.is_numeric() {
 			output.push(*t);
 		}
 		else if t.is_function() || *t == Token::Parenthesis(true) {
@@ -73,12 +72,82 @@ pub fn infix_to_postfix(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
 	Ok(output)
 }
 
-pub fn parse(expression: String) -> Result<(Vec<Token>, HashMap<char, f64>), String> {
+pub fn parse(expression: String) -> Result<(Vec<Token>, Vec<(char, f64)>), String> {
 
 	let (infix, parameters) = tokenize(expression)?;
 	let postfix = infix_to_postfix(infix)?;
 
-	let parameters = parameters.iter().map(|p| {(*p, 0.0)}).collect::<HashMap<char, f64>>();
+	let parameters = parameters.iter().map(|p| {(*p, 0.0)}).collect::<Vec<(char, f64)>>();
 
 	Ok((postfix, parameters))
+}
+
+pub fn evaluate(postfix: Vec<Token>, parameters: Vec<(char, f64)>) -> Result<f64, String> {
+
+	let mut stack = Vec::new();
+
+	for token in postfix {
+		if token.is_numeric() {
+			stack.push(token.value(&parameters).unwrap());
+		}
+		else {
+			match token {
+				Token::Operator(op) => {
+					if op == Operator::Negate {
+						let v = if let Some(v) = stack.pop() { v } else { return Err("Improper expression".into()) };
+						stack.push(-v);
+					}
+					else {
+						let v2 = if let Some(v) = stack.pop() { v } else { return Err("Improper expression".into()) };
+						let v1 = if let Some(v) = stack.pop() { v } else { return Err("Improper expression".into()) };
+
+						let outcome = match op {
+							Operator::Add => v1 + v2,
+							Operator::Subtract => v1 - v2,
+							Operator::Multiply => v1 * v2,
+							Operator::Divide => v1 / v2,
+							Operator::Power => v1.powf(v2),
+							Operator::Negate => 0.0, 		// will not happen
+						};
+
+						stack.push(outcome);
+					}
+				},
+				Token::Function(func) => {
+					if func.num_arguments() == 1 {
+						let v = if let Some(v) = stack.pop() { v } else { return Err("Improper expression".into()) };
+
+						let outcome = match func {
+							Function::Sin => v.sin(),
+							Function::Cos => v.cos(),
+							Function::Sign => v.signum(),
+							_ => 0.0						// will not happen
+						};
+
+						stack.push(outcome);
+					}
+					else if func.num_arguments() == 2 {
+						let v2 = if let Some(v) = stack.pop() { v } else { return Err("Improper expression".into()) };
+						let v1 = if let Some(v) = stack.pop() { v } else { return Err("Improper expression".into()) };
+
+						let outcome = match func {
+							Function::Max => v1.max(v2),
+							Function::Min => v1.min(v2),
+							_ => 0.0						// will not happen
+						};
+
+						stack.push(outcome);
+					}
+				}
+				_ => return Err("Unexpected postfix token".to_owned()),
+			}
+		}
+	}
+
+	if stack.len() == 1{
+		Ok(stack.pop().unwrap())
+	}
+	else {
+		Err("Improper expression".into())
+	}
 }
