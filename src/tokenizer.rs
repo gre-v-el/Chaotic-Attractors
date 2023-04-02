@@ -1,8 +1,10 @@
+use std::collections::HashSet;
+
 use crate::token::{Token, Operator, Function};
 
 
-pub fn tokenize(mut string: String) -> Result<(Vec<Token>, Vec<char>), String> {
-	let mut parameters = vec!['x', 'y', 'z'];
+pub fn tokenize(mut string: String) -> Result<(Vec<Token>, HashSet<char>), String> {
+	let mut parameters = HashSet::new();
 	let mut tokens = Vec::new();
 	
 	string = string.replace(" ", "");
@@ -11,13 +13,7 @@ pub fn tokenize(mut string: String) -> Result<(Vec<Token>, Vec<char>), String> {
 	let mut current = String::new();
 	for char in string.chars() {
 				
-		let mut single_char_token = one_char_token(char);
-		if single_char_token == Some(Token::Operator(Operator::Subtract)) {
-			if tokens.last() == Some(&Token::Parenthesis(true)) || tokens.last() == Some(&Token::Comma) || tokens.last() == None {
-				single_char_token = Some(Token::Operator(Operator::Negate));
-			}
-		}
-
+		let single_char_token = one_char_token(char);
 
 		if let Some(token) = single_char_token {
 			if !current.is_empty() {
@@ -36,6 +32,16 @@ pub fn tokenize(mut string: String) -> Result<(Vec<Token>, Vec<char>), String> {
 		tokens.push(token);
 	}
 	
+	let mut prev = None;
+	for t in &mut tokens {
+		
+		if *t == Token::Operator(Operator::Subtract) && (prev == Some(Token::Comma) || prev == Some(Token::Parenthesis(true))) {
+			*t = Token::Operator(Operator::Negate);
+		}
+
+		prev = Some(*t);
+	}
+
 	
 	Ok((tokens, parameters))
 }
@@ -54,7 +60,7 @@ pub fn one_char_token(string: char) -> Option<Token> {
 	}
 }
 
-pub fn multichar_token(string: &str, parameters: &mut Vec<char>) -> Result<Token, String> {
+pub fn multichar_token(string: &str, parameters: &mut HashSet<char>) -> Result<Token, String> {
 	let mut alphabetic = 0;
 	let mut numeric = 0;
 	let mut total = 0;
@@ -83,18 +89,8 @@ pub fn multichar_token(string: &str, parameters: &mut Vec<char>) -> Result<Token
 			str => {
 				if str.len() == 1 {
 					let char = str.chars().next().unwrap();
-					let mut index = None;
-					for (i, p) in parameters.iter().enumerate() {
-						if *p == char {
-							index = Some(i);
-							break;
-						}
-					}
-					let index = if let Some(i) = index { i } else {
-						parameters.push(char);
-						parameters.len() - 1
-					};
-					Token::Identifier(index)
+					parameters.insert(char);
+					Token::Identifier(char)
 				}
 				else {
 					return Err(format!("Unexpected function: {}", str));

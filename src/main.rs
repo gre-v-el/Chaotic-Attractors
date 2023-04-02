@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use camera::OrbitCamera;
 use egui_macroquad::{egui, macroquad::{self, prelude::*}};
 use parser::{parse, evaluate};
-use tokenizer::tokenize;
 
 fn lorenz(pos: &mut (f64, f64, f64), sigma: f64, rho: f64, beta: f64, dt: f64) {
 	let dx = sigma * (pos.1 - pos.0);
@@ -38,9 +37,20 @@ fn spawn_seeds(positions: &mut Vec<(f64, f64, f64)>, cx: f64, cy: f64, cz: f64, 
 
 #[macroquad::main("chaotic attractors")]
 async fn main() {
-	let (postfix, parameters) = parse("min(cos(3.1415926), -5)".into()).unwrap();
+	let (tokens_x, params_x) = parse("s * (y - x)".into()).unwrap();
+	let (tokens_y, params_y) = parse("x * (r - z) - y".into()).unwrap();
+	let (tokens_z, params_z) = parse("x*y - b*z".into()).unwrap();
 
-	println!("\n{:?}", evaluate(postfix, parameters));
+	let mut params = params_x;
+	params.extend(params_y);
+	params.extend(params_z);
+	params.extend([('x', 0.0), ('y', 0.0), ('z', 0.0)]);
+
+	println!("{:?}", tokens_x);
+	println!("{:?}", tokens_y);
+	println!("{:?}", tokens_z);
+	println!("{:?}", params);
+
 
 
 

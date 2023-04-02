@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token {
 	Literal(f64),			// 2.0, 3.1415926, 10.0
-	Identifier(usize),		// x, y, z, rho, sigma, beta, epsilon (index to a vector)
+	Identifier(char),		// x, y, z, rho, sigma, beta, epsilon (index to a vector)
 	Operator(Operator),		// * + - / ^
 	Parenthesis(bool),		// (is_opening)
 	Function(Function),
@@ -24,10 +26,10 @@ impl Token {
 		}
 	}
 
-	pub fn value(&self, parameters: &Vec<(char, f64)>) -> Result<f64, String> {
+	pub fn value(&self, parameters: &HashMap<char, f64>) -> Result<f64, String> {
 		match self {
 			Self::Literal(v) => Ok(*v),
-			Self::Identifier(c) => if let Some((_, v)) = parameters.get(*c) {Ok(*v)} else {Err("Unknown identifier".into())},
+			Self::Identifier(c) => if let Some(v) = parameters.get(c) {Ok(*v)} else {Err("Unknown identifier".into())},
 			_ => Err("Unexpected token in evaluation".into())
 		}
 	}
