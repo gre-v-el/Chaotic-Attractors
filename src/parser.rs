@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::tokenizer::tokenize;
 use crate::token::*;
@@ -74,17 +74,17 @@ pub fn infix_to_postfix(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
 	Ok(output)
 }
 
-pub fn parse(expression: String) -> Result<(Vec<Token>, HashMap<char, f64>), String> {
+pub fn parse(expression: String) -> Result<(Vec<Token>, BTreeMap<char, f64>), String> {
 
 	let (infix, parameters) = tokenize(expression)?;
 	let postfix = infix_to_postfix(infix)?;
 
-	let parameters = parameters.iter().map(|p| {(*p, 0.0)}).collect::<HashMap<char, f64>>();
+	let parameters = parameters.iter().map(|p| {(*p, 0.0)}).collect::<BTreeMap<char, f64>>();
 
 	Ok((postfix, parameters))
 }
 
-pub fn evaluate(postfix: &Vec<Token>, parameters: &HashMap<char, f64>) -> Result<f64, String> {
+pub fn evaluate(postfix: &Vec<Token>, parameters: &BTreeMap<char, f64>) -> Result<f64, String> {
 
 	let mut stack = Vec::new();
 

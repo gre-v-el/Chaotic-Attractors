@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token {
@@ -26,7 +26,7 @@ impl Token {
 		}
 	}
 
-	pub fn value(&self, parameters: &HashMap<char, f64>) -> Result<f64, String> {
+	pub fn value(&self, parameters: &BTreeMap<char, f64>) -> Result<f64, String> {
 		match self {
 			Self::Literal(v) => Ok(*v),
 			Self::Identifier(c) => if let Some(v) = parameters.get(c) {Ok(*v)} else {Err("Unknown identifier".into())},
