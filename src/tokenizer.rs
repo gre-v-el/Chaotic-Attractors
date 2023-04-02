@@ -35,7 +35,7 @@ pub fn tokenize(mut string: String) -> Result<(Vec<Token>, HashSet<char>), Strin
 	let mut prev = None;
 	for t in &mut tokens {
 		
-		if *t == Token::Operator(Operator::Subtract) && (prev == Some(Token::Comma) || prev == Some(Token::Parenthesis(true))) {
+		if *t == Token::Operator(Operator::Subtract) && (prev == None || prev == Some(Token::Comma) || prev == Some(Token::Parenthesis(true))) {
 			*t = Token::Operator(Operator::Negate);
 		}
 
