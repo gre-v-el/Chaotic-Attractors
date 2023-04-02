@@ -84,7 +84,7 @@ pub fn parse(expression: String) -> Result<(Vec<Token>, HashMap<char, f64>), Str
 	Ok((postfix, parameters))
 }
 
-pub fn evaluate(postfix: Vec<Token>, parameters: HashMap<char, f64>) -> Result<f64, String> {
+pub fn evaluate(postfix: &Vec<Token>, parameters: &HashMap<char, f64>) -> Result<f64, String> {
 
 	let mut stack = Vec::new();
 
@@ -95,7 +95,7 @@ pub fn evaluate(postfix: Vec<Token>, parameters: HashMap<char, f64>) -> Result<f
 		else {
 			match token {
 				Token::Operator(op) => {
-					if op == Operator::Negate {
+					if *op == Operator::Negate {
 						let v = if let Some(v) = stack.pop() { v } else { return Err("Improper expression".into()) };
 						stack.push(-v);
 					}

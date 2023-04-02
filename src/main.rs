@@ -46,16 +46,14 @@ async fn main() {
 	params.extend(params_z);
 	params.extend([('x', 0.0), ('y', 0.0), ('z', 0.0)]);
 
-	println!("{:?}", tokens_x);
-	println!("{:?}", tokens_y);
-	println!("{:?}", tokens_z);
-	println!("{:?}", params);
+	params.insert('s', 10.0);
+	params.insert('r', 28.0);
+	params.insert('b', 8.0/3.0);
 
 
 
 
-
-	let mut attractor = HashMap::new();
+	// let mut attractor = HashMap::new();
 
 	let mut positions = Vec::new();
 	spawn_seeds(&mut positions, 1.0, 1.0, 10.0, 0.1, 10);
@@ -76,11 +74,26 @@ async fn main() {
 
 		set_camera(&camera.camera());
 
-		for pos in &mut positions {
-			let key = (pos.0 as i32, pos.1 as i32, pos.2 as i32);
-			attractor.insert(key, attractor.get(&key).unwrap_or(&0) + 1);
-			lorenz(pos, 10.0, 28.0, 8.0/3.0, 0.01);
-			draw_cube(vec3(pos.0 as f32, pos.1 as f32, pos.2 as f32), Vec3::splat(0.3), None, ORANGE);
+		for (x, y, z) in &mut positions {
+			// let key = (x as i32, y as i32, z as i32);
+			// attractor.insert(key, attractor.get(&key).unwrap_or(&0) + 1);
+			// lorenz(pos, 10.0, 28.0, 8.0/3.0, 0.01);
+			
+			params.insert('x', *x);
+			params.insert('y', *y);
+			params.insert('z', *z);
+
+			let dx = evaluate(&tokens_x, &params).unwrap();
+			let dy = evaluate(&tokens_y, &params).unwrap();
+			let dz = evaluate(&tokens_z, &params).unwrap();
+
+			*x += dx * 0.01;
+			*y += dy * 0.01;
+			*z += dz * 0.01;
+
+			// println!("{}, {}, {}", x, y, z);
+
+			draw_cube(vec3(*x as f32, *y as f32, *z as f32), Vec3::splat(0.3), None, ORANGE);
 		}
 
 		// for (pos, density) in &attractor {
