@@ -4,75 +4,61 @@ mod parser;
 mod token;
 mod presets;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, f32::consts::E};
 
 use camera::OrbitCamera;
-use egui_macroquad::{egui, macroquad::{self, prelude::*, rand}};
+use egui_macroquad::{egui::{self, RichText, Rgba}, macroquad::{self, prelude::*, rand}};
 use parser::{parse, evaluate};
 use presets::{read, Preset};
 use token::Token;
 
 /* 
 	todo:
-	 - reset seeds
-	 - escape radius
 	 - capture mouse
-	 - presets
-	 - error handling
+	 - more presets
  */
 
-fn apply_preset(preset: &Preset) -> Option<([String; 3], [Vec<Token>; 3], BTreeMap<char, f64>)> {
-	let (tokens, mut params) = parse_group(&preset.expressions);
+fn apply_preset(preset: &Preset) -> Result<([String; 3], [Vec<Token>; 3], BTreeMap<char, f64>), String> {
+	let (tokens, mut params) = parse_group(&preset.expressions)?;
 	
 	let mut index = 0;
 	for (c, param) in &mut params {
 		if *c == 'x' || *c == 'y' || *c == 'z' { continue; }
-		*param = *preset.params.get(index)?;
+		*param = if let Some(v) = preset.params.get(index) {*v} else {return Err("Error while reading a preset".into())};
 		index += 1;
 	}
 
-	Some((preset.expressions.clone(), tokens, params))
+	Ok((preset.expressions.clone(), tokens, params))
 }
 
-
-fn spawn_seeds(positions: &mut Vec<(f64, f64, f64)>, cx: f64, cy: f64, cz: f64, radius: f64, amount: usize) {
-	for x in 0..amount {
-		let x = x as f64 / (amount-1) as f64 * radius*2.0 - radius;
-
-		for y in 0..amount {
-			let y = y as f64 / (amount-1) as f64 * radius*2.0 - radius;
-
-			for z in 0..amount {
-				let z = z as f64 / (amount-1) as f64 * radius*2.0 - radius;
-
-				positions.push((x + cx, y + cy, z + cz));
-			}
-		}
-	}
-}
-
-fn parse_group(expression: &[String; 3]) -> ([Vec<Token>; 3], BTreeMap<char, f64>) {
-	let (tokens_x, params_x) = parse(expression[0].clone()).unwrap();
-	let (tokens_y, params_y) = parse(expression[1].clone()).unwrap();
-	let (tokens_z, params_z) = parse(expression[2].clone()).unwrap();
+fn parse_group(expression: &[String; 3]) -> Result<([Vec<Token>; 3], BTreeMap<char, f64>), String> {
+	let (tokens_x, params_x) = parse(expression[0].clone())?;
+	let (tokens_y, params_y) = parse(expression[1].clone())?;
+	let (tokens_z, params_z) = parse(expression[2].clone())?;
 
 	let mut params = params_x;
 	params.extend(params_y);
 	params.extend(params_z);
 
-	([tokens_x, tokens_y, tokens_z], params)
+	Ok(([tokens_x, tokens_y, tokens_z], params))
 }
 
 
 
 #[macroquad::main("chaotic attractors")]
 async fn main() {
-	let presets = read().unwrap();
+	let mut error_msg = "".to_owned();
+
+	let presets = read().unwrap_or_else(|_| {vec![Preset{name: "<There was an error while reading presets>".into(), expressions: ["0".into(), "0".into(), "0".into()], params: vec![]}]});
 	let mut selected_preset = 0;
 	
 	let mut changed = [false; 3];
-	let (mut editable, mut tokens, mut params) = apply_preset(&presets[0]).unwrap(); 
-	
+	let (mut editable, mut tokens, mut params) = apply_preset(&presets[0]).unwrap_or_else(|e| {
+		error_msg = e;
+
+		(["0".into(), "0".into(), "0".into()], [vec![Token::Literal(0.0)], vec![Token::Literal(0.0)], vec![Token::Literal(0.0)]], BTreeMap::new())
+	});
+
 	let mut playing = true;
 	let mut dt = 0.01;
 
@@ -119,9 +105,10 @@ async fn main() {
 				params.insert('y', *y);
 				params.insert('z', *z);
 	
-				let dx = evaluate(&tokens[0], &params).unwrap();
-				let dy = evaluate(&tokens[1], &params).unwrap();
-				let dz = evaluate(&tokens[2], &params).unwrap();
+				
+				let dx = evaluate(&tokens[0], &params).unwrap_or_else(|e| {error_msg=e; 0.0});
+				let dy = evaluate(&tokens[1], &params).unwrap_or_else(|e| {error_msg=e; 0.0});
+				let dz = evaluate(&tokens[2], &params).unwrap_or_else(|e| {error_msg=e; 0.0});
 	
 				*x += dx * dt;
 				*y += dy * dt;
@@ -144,17 +131,43 @@ async fn main() {
 		let mut apply = false;
 		egui_macroquad::ui(|ctx| {
 			egui::Window::new("Options").collapsible(false).title_bar(false).fixed_pos((10.0, 10.0)).resizable(false).show(ctx, |ui| {
+				ui.label(RichText::new(&error_msg).color(Rgba::from_rgb(1.0, 0.0, 0.0)));
+
 				ui.heading("Controls");
 				playing = playing ^ ui.button(if playing { "pause" } else { "play" }).clicked();
-				ui.add(egui::DragValue::new(&mut dt).speed(0.0001));
-				ui.add(egui::DragValue::new(&mut target_seeds).speed(10));
-				ui.add(egui::DragValue::new(&mut seed_size).speed(0.001));
+				ui.horizontal(|ui| {
+					ui.add(egui::DragValue::new(&mut dt).speed(0.001));
+					ui.label("  dt");
+				});
+				ui.horizontal(|ui| {
+					ui.add(egui::DragValue::new(&mut target_seeds).speed(10));
+					ui.label("  number of seeds");
+				});
+				ui.horizontal(|ui| {
+					ui.add(egui::DragValue::new(&mut seed_size).speed(0.001));
+					ui.label("  seed size");
+				});
+				ui.horizontal(|ui| {
+					ui.add(egui::DragValue::new(&mut seed_jitter).speed(0.001));
+					ui.label("  seed placement jitter");
+				});
+				
+				ui.horizontal(|ui| {
+					ui.add(egui::DragValue::new(&mut seed_spawn.0).speed(0.1));
+					ui.add(egui::DragValue::new(&mut seed_spawn.1).speed(0.1));
+					ui.add(egui::DragValue::new(&mut seed_spawn.2).speed(0.1));
+					ui.label("  seed spawn position");
+				});
+
 
 				ui.add_space(20.0);
 				ui.heading("Equations");
 				if egui::ComboBox::from_label("Presets").show_index(ui, &mut selected_preset, presets.len(), |i| {presets[i].name.clone()}).changed() {
-					// println!("{:?}", presets[selected_preset]);
-					(editable, tokens, params) = apply_preset(&presets[selected_preset]).unwrap(); 
+					(editable, tokens, params) = apply_preset(&presets[selected_preset]).unwrap_or_else(|e| {
+						error_msg = e;
+
+						(["0".into(), "0".into(), "0".into()], [vec![Token::Literal(0.0)], vec![Token::Literal(0.0)], vec![Token::Literal(0.0)]], BTreeMap::new())
+					}); 
 				}
 
 				let chars = ['x', 'y', 'z'];
@@ -186,7 +199,10 @@ async fn main() {
 
 		if apply {
 			let old_params = params;
-			(tokens, params) = parse_group(&editable);
+			(tokens, params) = parse_group(&editable).unwrap_or_else(|e| {
+				error_msg = e;
+				([vec![Token::Literal(0.0)], vec![Token::Literal(0.0)], vec![Token::Literal(0.0)]], BTreeMap::new())
+			});
 			for (k, v) in &mut params {
 				if let Some(old_v) = old_params.get(&k) {
 					*v = *old_v;

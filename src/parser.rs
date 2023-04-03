@@ -18,7 +18,7 @@ pub fn infix_to_postfix(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
 			loop {
 				if let Some(Token::Operator(op2)) = stack.last() {
 					if op2.compare(op1) == 1 || op1.compare(op2) == 0 && op1.left_associative() {
-						output.push(stack.pop().unwrap());
+						output.push(stack.pop().unwrap()); // inside if let stack.last, so unwrap is harmless
 					}
 					else {
 						break;
@@ -35,7 +35,7 @@ pub fn infix_to_postfix(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
 				if let Some(Token::Parenthesis(true)) = stack.last() {
 					stack.pop();
 					if let Some(Token::Function(_)) = stack.last() {
-						output.push(stack.pop().unwrap());
+						output.push(stack.pop().unwrap()); // inside if let stack.last, so unwrap is harmless
 					}
 					break;
 				}
@@ -90,7 +90,7 @@ pub fn evaluate(postfix: &Vec<Token>, parameters: &BTreeMap<char, f64>) -> Resul
 
 	for token in postfix {
 		if token.is_numeric() {
-			stack.push(token.value(&parameters).unwrap());
+			stack.push(token.value(&parameters)?);
 		}
 		else {
 			match token {
