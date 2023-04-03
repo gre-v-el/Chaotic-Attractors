@@ -2,12 +2,14 @@ mod camera;
 mod tokenizer;
 mod parser;
 mod token;
+mod presets;
 
 use std::collections::BTreeMap;
 
 use camera::OrbitCamera;
 use egui_macroquad::{egui, macroquad::{self, prelude::*}};
 use parser::{parse, evaluate};
+use presets::read;
 use token::Token;
 
 /* 
@@ -47,8 +49,12 @@ fn parse_group(expression: &[String; 3]) -> ([Vec<Token>; 3], BTreeMap<char, f64
 	([tokens_x, tokens_y, tokens_z], params)
 }
 
+
+
 #[macroquad::main("chaotic attractors")]
 async fn main() {
+	let presets = read().unwrap();
+	let mut selected_preset = 0;
 	
 	let mut changed = [false; 3];
 	let mut editable = ["s * (y - x)".into(), "x * (r - z) - y".into(), "x*y - b*z".into()];
@@ -69,9 +75,9 @@ async fn main() {
 	spawn_seeds(&mut positions, 11.0, 1.0, 10.0, 0.1, 13);
 
 	let mut camera = OrbitCamera {
-		center: vec3(1.0, 1.0, 10.0),
-		polar: 0.3,
-		azimuth: 0.5,
+		center: vec3(0.0, 0.0, 0.0),
+		polar: 2.0,
+		azimuth: 1.0,
 		zoom: -20.0,
 		rotate_sinsitivity: 6.0,
 		last_mouse: Vec2::from(mouse_position()) / vec2(screen_width(), screen_width()),
@@ -81,7 +87,7 @@ async fn main() {
 
 		clear_background(BLACK);
 
-		camera.update();
+		camera.update(true);
 
 		set_camera(&camera.camera());
 
@@ -126,6 +132,10 @@ async fn main() {
 
 				ui.add_space(20.0);
 				ui.heading("Equations");
+				if egui::ComboBox::from_label("Presets").show_index(ui, &mut selected_preset, presets.len(), |i| {presets[i].name.clone()}).changed() {
+					println!("{:?}", presets[selected_preset]);
+				}
+
 				let chars = ['x', 'y', 'z'];
 				for i in 0..3 {
 					changed[i] |= ui.horizontal(|ui| {
@@ -152,6 +162,7 @@ async fn main() {
 			});
 		});
 		egui_macroquad::draw();
+
 		if apply {
 			let old_params = params;
 			(tokens, params) = parse_group(&editable);

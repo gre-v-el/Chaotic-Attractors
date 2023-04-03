@@ -1,3 +1,0 @@
-Lorenz;s * (y-x);x * (r-z) - y;x*y - b*z;2.666;28;10;;;
-Thomas;sin(y) - b*x;sin(z) - b*y;sin(x) - b*z;0.208186;;;;;
-Aizawa;(z-b) * x - d*y;d*x + (z-b) * y;c + a*z - z^3/3 - (x^2 + y^2)*(1+e*z) + f*z*x^3;0.95;0.7;0.6;3.5;0.25;0.1
