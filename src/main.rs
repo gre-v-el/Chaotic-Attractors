@@ -7,9 +7,9 @@ mod presets;
 use std::collections::BTreeMap;
 
 use camera::OrbitCamera;
-use egui_macroquad::{egui, macroquad::{self, prelude::*}};
+use egui_macroquad::{egui, macroquad::{self, prelude::*, rand}};
 use parser::{parse, evaluate};
-use presets::read;
+use presets::{read, Preset};
 use token::Token;
 
 /* 
@@ -20,6 +20,20 @@ use token::Token;
 	 - presets
 	 - error handling
  */
+
+fn apply_preset(preset: &Preset) -> Option<([String; 3], [Vec<Token>; 3], BTreeMap<char, f64>)> {
+	let (tokens, mut params) = parse_group(&preset.expressions);
+	
+	let mut index = 0;
+	for (c, param) in &mut params {
+		if *c == 'x' || *c == 'y' || *c == 'z' { continue; }
+		*param = *preset.params.get(index)?;
+		index += 1;
+	}
+
+	Some((preset.expressions.clone(), tokens, params))
+}
+
 
 fn spawn_seeds(positions: &mut Vec<(f64, f64, f64)>, cx: f64, cy: f64, cz: f64, radius: f64, amount: usize) {
 	for x in 0..amount {
@@ -57,22 +71,19 @@ async fn main() {
 	let mut selected_preset = 0;
 	
 	let mut changed = [false; 3];
-	let mut editable = ["s * (y - x)".into(), "x * (r - z) - y".into(), "x*y - b*z".into()];
-
-	let (mut tokens, mut params) = parse_group(&editable);
-
-	params.insert('s', 10.0);
-	params.insert('r', 28.0);
-	params.insert('b', 8.0/3.0);
-
+	let (mut editable, mut tokens, mut params) = apply_preset(&presets[0]).unwrap(); 
+	
 	let mut playing = true;
 	let mut dt = 0.01;
 
+	let mut target_seeds = 1000;
+	let mut seed_spawn = (0.0, 0.0, 0.0);
+	let mut seed_jitter = 0.1;
+	let mut seed_size = 0.3;
 
 	// let mut attractor = HashMap::new();
 
-	let mut positions = Vec::new();
-	spawn_seeds(&mut positions, 11.0, 1.0, 10.0, 0.1, 13);
+	let mut seeds = Vec::new();
 
 	let mut camera = OrbitCamera {
 		center: vec3(0.0, 0.0, 0.0),
@@ -92,7 +103,14 @@ async fn main() {
 		set_camera(&camera.camera());
 
 		if playing {
-			for (x, y, z) in &mut positions {
+			while seeds.len() < target_seeds {
+				seeds.push((seed_spawn.0 + rand::gen_range(-seed_jitter, seed_jitter), seed_spawn.1 + rand::gen_range(-seed_jitter, seed_jitter), seed_spawn.2 + rand::gen_range(-seed_jitter, seed_jitter)));
+			}
+			if seeds.len() > target_seeds {
+				seeds.drain(target_seeds..);
+			}
+
+			for (x, y, z) in &mut seeds {
 				// let key = (x as i32, y as i32, z as i32);
 				// attractor.insert(key, attractor.get(&key).unwrap_or(&0) + 1);
 				// lorenz(pos, 10.0, 28.0, 8.0/3.0, 0.01);
@@ -115,8 +133,8 @@ async fn main() {
 		draw_line_3d((-1000.0, 0.0, 0.0).into(), (1000.0, 0.0, 0.0).into(), GRAY);
 		draw_line_3d((0.0, -1000.0, 0.0).into(), (0.0, 1000.0, 0.0).into(), GRAY);
 		draw_line_3d((0.0, 0.0, -1000.0).into(), (0.0, 0.0, 1000.0).into(), GRAY);
-		for (x, y, z) in &mut positions {
-			draw_cube(vec3(*x as f32, *y as f32, *z as f32), Vec3::splat(0.3), None, ORANGE);
+		for (x, y, z) in &mut seeds {
+			draw_cube(vec3(*x as f32, *y as f32, *z as f32), Vec3::splat(seed_size), None, ORANGE);
 		}
 
 		// for (pos, density) in &attractor {
@@ -129,11 +147,14 @@ async fn main() {
 				ui.heading("Controls");
 				playing = playing ^ ui.button(if playing { "pause" } else { "play" }).clicked();
 				ui.add(egui::DragValue::new(&mut dt).speed(0.0001));
+				ui.add(egui::DragValue::new(&mut target_seeds).speed(10));
+				ui.add(egui::DragValue::new(&mut seed_size).speed(0.001));
 
 				ui.add_space(20.0);
 				ui.heading("Equations");
 				if egui::ComboBox::from_label("Presets").show_index(ui, &mut selected_preset, presets.len(), |i| {presets[i].name.clone()}).changed() {
-					println!("{:?}", presets[selected_preset]);
+					// println!("{:?}", presets[selected_preset]);
+					(editable, tokens, params) = apply_preset(&presets[selected_preset]).unwrap(); 
 				}
 
 				let chars = ['x', 'y', 'z'];

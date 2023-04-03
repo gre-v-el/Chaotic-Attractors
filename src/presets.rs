@@ -28,7 +28,7 @@ pub fn read() -> Result<Vec<Preset>, std::io::Error> {
 
 #[derive(Debug)]
 pub struct Preset {
-	pub name: String,
+	pub name: String, 
 	pub expressions: [String; 3],
 	pub params: Vec<f64>,
 }
