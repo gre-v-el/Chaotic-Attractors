@@ -4,7 +4,7 @@ mod parser;
 mod token;
 mod presets;
 
-use std::{collections::BTreeMap, f32::consts::E};
+use std::{collections::BTreeMap};
 
 use camera::OrbitCamera;
 use egui_macroquad::{egui::{self, RichText, Rgba}, macroquad::{self, prelude::*, rand}};
@@ -14,7 +14,6 @@ use token::Token;
 
 /* 
 	todo:
-	 - capture mouse
 	 - more presets
  */
 
@@ -67,6 +66,8 @@ async fn main() {
 	let mut seed_jitter = 0.1;
 	let mut seed_size = 0.3;
 
+	let mut ui_captured_mouse = false;
+
 	// let mut attractor = HashMap::new();
 
 	let mut seeds = Vec::new();
@@ -84,7 +85,7 @@ async fn main() {
 
 		clear_background(BLACK);
 
-		camera.update(true);
+		camera.update(!ui_captured_mouse);
 
 		set_camera(&camera.camera());
 
@@ -194,6 +195,8 @@ async fn main() {
 					});
 				}
 			});
+
+			ui_captured_mouse = ctx.is_pointer_over_area();
 		});
 		egui_macroquad::draw();
 
